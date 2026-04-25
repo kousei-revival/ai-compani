@@ -10,6 +10,7 @@ node_modules/
 dist/
 *.log
 
-# ローカル設定
+# ローカル設定（どの階層でも）
+**/settings.local.json
 .claude/settings.local.json
 .DS_Store
