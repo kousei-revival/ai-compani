@@ -1,0 +1,15 @@
+{
+  "_comment": "各チャンネルに personas/<key>.md と、任意で .claude/skills/<skill>/skill.md",
+  "_default": { "key": "_default", "label": "assistant" },
+  "C0AESQKCXCN": { "key": "general", "label": "general", "skill": "session" },
+  "C0AUN659GBW": { "key": "writer", "label": "writer", "skill": "edit-article" },
+  "C0AU34VR41M": { "key": "designer", "label": "designer", "skill": "frontend-design" },
+  "C0AVCS7BR16": { "key": "sns", "label": "sns", "skill": "marketing-skills" },
+  "C0AUGGGP7PG": { "key": "academic", "label": "academic", "skill": "doc-coauthoring" },
+  "C0AVCSABLGY": { "key": "customer_success", "label": "customer_success", "skill": "prd-to-plan" },
+  "C0AUN6CRZTN": { "key": "operations", "label": "operations", "skill": "triage-issue" },
+  "C0AU3537LBZ": { "key": "researcher", "label": "researcher", "skill": "meo-research" },
+  "C0AVCSFDQU8": { "key": "web", "label": "web", "skill": "web-artifacts-builder" },
+  "C0AVCSP0MT2": { "key": "video", "label": "video", "skill": "write-a-prd" },
+  "C0AUGGQKSA2": { "key": "leader", "label": "leader", "skill": "triage-issue" }
+}

@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>休憩</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    background: #0a0a0a;
+    color: #e0e0e0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    user-select: none;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* --- running state --- */
+  .running { display: flex; flex-direction: column; align-items: center; }
+  .running.hide { display: none; }
+
+  .reason {
+    font-size: 0.85rem;
+    color: #4a4a4a;
+    margin-bottom: 20px;
+    text-align: center;
+    line-height: 1.8;
+    max-width: 320px;
+    letter-spacing: 0.02em;
+  }
+
+  .suggestion {
+    font-size: 1.1rem;
+    color: #777;
+    margin-bottom: 56px;
+    text-align: center;
+    line-height: 1.6;
+    letter-spacing: 0.03em;
+  }
+
+  /* --- ring + timer --- */
+  .timer-wrap {
+    position: relative;
+    width: 280px;
+    height: 280px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 40px;
+  }
+
+  .timer-wrap svg {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+  }
+
+  .ring-bg {
+    fill: none;
+    stroke: #1a1a1a;
+    stroke-width: 2;
+  }
+
+  .ring-fg {
+    fill: none;
+    stroke: #333;
+    stroke-width: 2;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 1s linear;
+  }
+
+  .timer {
+    font-size: 4rem;
+    font-weight: 200;
+    letter-spacing: 0.08em;
+    font-variant-numeric: tabular-nums;
+    color: #d0d0d0;
+    position: relative;
+    z-index: 1;
+  }
+
+  .timer.paused { color: #555; }
+
+  /* --- slider --- */
+  .slider-wrap {
+    width: 240px;
+    margin-bottom: 36px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .slider-labels {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    font-size: 0.7rem;
+    color: #333;
+    padding: 0 2px;
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 2px;
+    background: #222;
+    border-radius: 1px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #555;
+    border: none;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  input[type="range"]::-webkit-slider-thumb:hover {
+    background: #888;
+  }
+
+  /* --- controls --- */
+  .controls {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 48px;
+  }
+
+  .ctrl-btn {
+    background: none;
+    border: 1px solid #1e1e1e;
+    color: #555;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+
+  .ctrl-btn:hover { border-color: #3a3a3a; color: #999; }
+
+  .ctrl-btn svg {
+    width: 16px;
+    height: 16px;
+    fill: currentColor;
+  }
+
+  /* --- back to work --- */
+  .back-btn {
+    background: none;
+    border: none;
+    color: #2a2a2a;
+    font-size: 0.75rem;
+    cursor: pointer;
+    letter-spacing: 0.05em;
+    transition: color 0.3s;
+    padding: 8px 16px;
+  }
+
+  .back-btn:hover { color: #555; }
+
+  /* --- done state --- */
+  .done {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    animation: fadeIn 0.6s ease;
+  }
+
+  .done.show { display: flex; }
+
+  .done-emoji { font-size: 2rem; margin-bottom: 16px; }
+
+  .done-text {
+    font-size: 1.2rem;
+    color: #666;
+    margin-bottom: 32px;
+    letter-spacing: 0.05em;
+  }
+
+  .done-btn {
+    background: none;
+    border: 1px solid #222;
+    color: #666;
+    padding: 10px 28px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.03em;
+  }
+
+  .done-btn:hover { border-color: #444; color: #aaa; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+</style>
+</head>
+<body>
+
+<div class="running" id="running">
+  <div class="reason" id="reason"></div>
+  <div class="suggestion" id="suggestion"></div>
+
+  <div class="timer-wrap">
+    <svg viewBox="0 0 280 280">
+      <circle class="ring-bg" cx="140" cy="140" r="130" />
+      <circle class="ring-fg" id="ring" cx="140" cy="140" r="130"
+        transform="rotate(-90 140 140)" />
+    </svg>
+    <div class="timer" id="timer">5:00</div>
+  </div>
+
+  <div class="slider-wrap" id="sliderWrap">
+    <input type="range" id="slider" min="1" max="15" step="1">
+    <div class="slider-labels">
+      <span>1</span><span>5</span><span>10</span><span>15min</span>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="ctrl-btn" id="pauseBtn" title="一時停止">
+      <svg viewBox="0 0 24 24" id="pauseIcon"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+      <svg viewBox="0 0 24 24" id="playIcon" style="display:none"><polygon points="6,4 20,12 6,20"/></svg>
+    </button>
+    <button class="ctrl-btn" id="resetBtn" title="リセット">
+      <svg viewBox="0 0 24 24"><path d="M17.65 6.35A7.96 7.96 0 0012 4a8 8 0 108 8h-2a6 6 0 11-1.76-4.24L14 10h6V4l-2.35 2.35z"/></svg>
+    </button>
+  </div>
+
+  <button class="back-btn" id="backBtn">作業に戻る</button>
+</div>
+
+<div class="done" id="done">
+  <div class="done-emoji">&#9996;&#65039;</div>
+  <div class="done-text">おかえり</div>
+  <button class="done-btn" onclick="window.close()">閉じる</button>
+</div>
+
+<script>
+const DATA = {
+  minutes: {{MINUTES}},
+  suggestion: "{{SUGGESTION}}",
+  reason: "{{REASON}}"
+};
+
+const timerEl    = document.getElementById("timer");
+const runningEl  = document.getElementById("running");
+const doneEl     = document.getElementById("done");
+const ring       = document.getElementById("ring");
+const slider     = document.getElementById("slider");
+const pauseBtn   = document.getElementById("pauseBtn");
+const resetBtn   = document.getElementById("resetBtn");
+const backBtn    = document.getElementById("backBtn");
+const pauseIcon  = document.getElementById("pauseIcon");
+const playIcon   = document.getElementById("playIcon");
+
+document.getElementById("suggestion").textContent = DATA.suggestion;
+document.getElementById("reason").textContent = DATA.reason;
+
+const circumference = 2 * Math.PI * 130;
+ring.setAttribute("stroke-dasharray", String(circumference));
+
+let totalSeconds = DATA.minutes * 60;
+let remaining    = totalSeconds;
+let paused       = false;
+let interval     = null;
+
+slider.value = DATA.minutes;
+
+function render() {
+  const m = Math.floor(remaining / 60);
+  const s = remaining % 60;
+  timerEl.textContent = `${m}:${String(s).padStart(2, "0")}`;
+
+  const progress = 1 - remaining / totalSeconds;
+  ring.setAttribute("stroke-dashoffset", String(circumference * (1 - progress)));
+}
+
+function tick() {
+  if (remaining <= 0) {
+    finish();
+    return;
+  }
+  remaining--;
+  render();
+}
+
+function finish() {
+  stop();
+  runningEl.classList.add("hide");
+  doneEl.classList.add("show");
+  document.title = "休憩おわり";
+  if (Notification.permission === "granted") {
+    new Notification("休憩おわり", { body: "戻っておいで" });
+  }
+}
+
+function start() {
+  if (interval) return;
+  paused = false;
+  timerEl.classList.remove("paused");
+  pauseIcon.style.display = "";
+  playIcon.style.display = "none";
+  interval = setInterval(tick, 1000);
+}
+
+function stop() {
+  clearInterval(interval);
+  interval = null;
+}
+
+function reset() {
+  stop();
+  totalSeconds = parseInt(slider.value) * 60;
+  remaining = totalSeconds;
+  paused = false;
+  timerEl.classList.remove("paused");
+  pauseIcon.style.display = "";
+  playIcon.style.display = "none";
+  render();
+  start();
+}
+
+pauseBtn.addEventListener("click", () => {
+  if (paused) {
+    start();
+  } else {
+    stop();
+    paused = true;
+    timerEl.classList.add("paused");
+    pauseIcon.style.display = "none";
+    playIcon.style.display = "";
+  }
+});
+
+resetBtn.addEventListener("click", reset);
+
+slider.addEventListener("input", () => {
+  stop();
+  totalSeconds = parseInt(slider.value) * 60;
+  remaining = totalSeconds;
+  paused = false;
+  timerEl.classList.remove("paused");
+  pauseIcon.style.display = "";
+  playIcon.style.display = "none";
+  render();
+});
+
+slider.addEventListener("change", () => {
+  start();
+});
+
+backBtn.addEventListener("click", () => {
+  window.close();
+  // window.close() doesn't work for non-script-opened windows
+  document.body.innerHTML = "";
+  document.title = "closed";
+  window.location.href = "about:blank";
+});
+
+if (Notification.permission === "default") {
+  Notification.requestPermission();
+}
+
+render();
+start();
+</script>
+</body>
+</html>

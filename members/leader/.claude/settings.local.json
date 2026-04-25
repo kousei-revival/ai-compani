@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p /mnt/user-data/outputs)",
+      "Read(//mnt/user-data/**)"
+    ]
+  }
+}

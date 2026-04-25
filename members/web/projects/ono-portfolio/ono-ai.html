@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ONO.AI | 現場の課題を、AIで解く。</title>
+  <meta name="description" content="小野高誠 - 理学療法士×AIエンジニア。医療現場の業務自動化・AIエージェント開発。" />
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    /* ========== ルート & 変数（ダーク×テック） ========== */
+    :root {
+      --bg: #0a0a0a;
+      --bg-elev: #111111;
+      --grid: rgba(255, 255, 255, 0.04);
+      --text: #e8e8e8;
+      --muted: #9ca3af;
+      --accent: #22d3ee; /* シアン */
+      --accent-dim: rgba(34, 211, 238, 0.15);
+      --lime: #a3e635; /* 補助アクセント */
+      --font-en: "JetBrains Mono", "Space Mono", ui-monospace, monospace;
+      --font-ja: "Noto Sans JP", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: var(--font-ja);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      overflow-x: hidden;
+    }
+
+    /* 背景グリッド（Hero 全体に薄く） */
+    .grid-bg {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background-image:
+        linear-gradient(var(--grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+      background-size: 48px 48px;
+      mask-image: linear-gradient(180deg, black 0%, transparent 85%);
+    }
+
+    a {
+      color: var(--accent);
+    }
+
+    /* ========== フェードイン用（JS で .visible 付与） ========== */
+    .fade {
+      opacity: 0;
+      transform: translateY(16px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    .fade.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* ========== レイアウト共通 ========== */
+    .wrap {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 1.25rem;
+    }
+
+    section {
+      padding: 4.5rem 0;
+    }
+
+    h2 {
+      font-family: var(--font-en);
+      font-size: clamp(1.15rem, 3vw, 1.5rem);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 2rem;
+    }
+
+    h2 .sub {
+      display: block;
+      font-family: var(--font-ja);
+      font-size: 0.85rem;
+      font-weight: 400;
+      color: var(--muted);
+      letter-spacing: normal;
+      text-transform: none;
+      margin-top: 0.35rem;
+    }
+
+    /* ========== Hero ========== */
+    .hero {
+      min-height: 100vh;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 4rem 0 5rem;
+    }
+
+    .logo {
+      font-family: var(--font-en);
+      font-weight: 700;
+      font-size: clamp(2.5rem, 10vw, 4.5rem);
+      letter-spacing: 0.08em;
+      line-height: 1.1;
+      margin-bottom: 1.5rem;
+      background: linear-gradient(120deg, var(--text) 0%, var(--accent) 50%, var(--lime) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .typing {
+      font-family: var(--font-en);
+      font-size: clamp(1rem, 4.2vw, 1.35rem);
+      min-height: 1.6em;
+      color: var(--accent);
+      margin-bottom: 1rem;
+    }
+
+    .typing::after {
+      content: "|";
+      animation: blink 1s step-end infinite;
+    }
+    .typing.done::after {
+      content: "";
+      animation: none;
+    }
+    @keyframes blink {
+      50% { opacity: 0; }
+    }
+
+    .subcopy {
+      font-size: 0.95rem;
+      color: var(--muted);
+      max-width: 36rem;
+      margin-bottom: 2rem;
+    }
+
+    .hero-cta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.75rem 1.35rem;
+      font-family: var(--font-ja);
+      font-size: 0.9rem;
+      font-weight: 500;
+      text-decoration: none;
+      border-radius: 4px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s, border-color 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #0a0a0a;
+    }
+    .btn-primary:hover {
+      filter: brightness(1.1);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--text);
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+    .btn-ghost:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .author {
+      margin-top: 2.5rem;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    .author strong {
+      color: var(--text);
+    }
+
+    /* ========== About ========== */
+    .about-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 2rem;
+    }
+    @media (min-width: 768px) {
+      .about-grid {
+        grid-template-columns: 1fr 1fr;
+        align-items: start;
+        gap: 3rem;
+      }
+    }
+
+    .about-text {
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+    .about-text p {
+      margin-bottom: 1rem;
+    }
+    .motto {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    .tag {
+      font-family: var(--font-en);
+      font-size: 0.7rem;
+      padding: 0.35rem 0.65rem;
+      background: var(--bg-elev);
+      border: 1px solid rgba(34, 211, 238, 0.25);
+      border-radius: 3px;
+      color: var(--accent);
+    }
+
+    .skill-bars {
+      margin-top: 1rem;
+    }
+    .skill-row {
+      margin-bottom: 0.75rem;
+    }
+    .skill-row label {
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+    .bar {
+      height: 4px;
+      background: #222;
+      border-radius: 2px;
+      margin-top: 0.25rem;
+      overflow: hidden;
+    }
+    .bar > span {
+      display: block;
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--lime));
+      border-radius: 2px;
+    }
+
+    /* ========== Works ========== */
+    .card-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1.25rem;
+    }
+    @media (min-width: 640px) {
+      .card-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    .card {
+      background: var(--bg-elev);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 8px;
+      padding: 1.35rem;
+      display: flex;
+      flex-direction: column;
+    }
+    .card h3 {
+      font-size: 1.05rem;
+      margin-bottom: 0.35rem;
+    }
+    .card .tool {
+      font-family: var(--font-en);
+      font-size: 0.7rem;
+      color: var(--lime);
+      margin-bottom: 0.75rem;
+    }
+    .card p {
+      font-size: 0.85rem;
+      color: var(--muted);
+      flex: 1;
+      margin-bottom: 1rem;
+    }
+    .card .tags {
+      margin-top: auto;
+    }
+
+    /* ========== Service ========== */
+    .service-list {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1rem;
+    }
+    @media (min-width: 768px) {
+      .service-list {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+    .service-item {
+      border: 1px solid rgba(34, 211, 238, 0.2);
+      border-radius: 8px;
+      padding: 1.5rem 1.25rem;
+      background: linear-gradient(145deg, rgba(34, 211, 238, 0.06) 0%, transparent 100%);
+    }
+    .service-item h3 {
+      font-size: 0.95rem;
+      margin-bottom: 0.5rem;
+    }
+    .service-item p {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    /* ========== Contact ========== */
+    .contact {
+      background: linear-gradient(135deg, var(--accent-dim) 0%, rgba(163, 230, 53, 0.08) 100%);
+      border: 1px solid rgba(34, 211, 238, 0.25);
+      border-radius: 12px;
+      padding: 2.5rem 1.5rem;
+      text-align: center;
+    }
+    .contact h2 {
+      margin-bottom: 1rem;
+    }
+    .contact p {
+      color: var(--muted);
+      margin-bottom: 1.5rem;
+    }
+    .contact .btn-primary {
+      margin-bottom: 1.5rem;
+    }
+    .hours {
+      font-size: 0.8rem;
+      color: var(--muted);
+      line-height: 1.8;
+    }
+    .hours strong {
+      color: var(--text);
+    }
+
+    /* ========== フッター ========== */
+    footer {
+      padding: 2rem 0 3rem;
+      text-align: center;
+      font-size: 0.75rem;
+      color: var(--muted);
+      font-family: var(--font-en);
+    }
+  </style>
+</head>
+<body>
+  <div class="grid-bg" aria-hidden="true"></div>
+
+  <!-- 1. Hero -->
+  <header class="hero" id="top">
+    <div class="wrap">
+      <p class="logo fade" data-fade>ONO.AI</p>
+      <p class="typing" id="typing" aria-live="polite"></p>
+      <p class="subcopy fade" data-fade>医療現場で培ったヒアリング力と、AI実装力を掛け合わせた業務自動化の専門家</p>
+      <div class="hero-cta fade" data-fade>
+        <a class="btn btn-primary" href="#works">実績を見る</a>
+        <a class="btn btn-ghost" href="#contact">お問い合わせ</a>
+      </div>
+      <p class="author fade" data-fade>制作者: <strong>小野高誠</strong> / 理学療法士 × AIエンジニア</p>
+    </div>
+  </header>
+
+  <!-- 2. About -->
+  <section class="about" id="about" aria-labelledby="about-h">
+    <div class="wrap">
+      <h2 id="about-h">About <span class="sub">自己紹介 &amp; スキル</span></h2>
+      <div class="about-grid">
+        <div class="about-text fade" data-fade>
+          <p>
+            理学療法士として1,000名以上の患者を担当しながら、
+            病院のAIデータチームメンバーとして業務自動化・AIエージェント開発を主導。
+          </p>
+          <p class="motto">「現場を知る人間が、AIで課題を解く」をモットーに活動中。</p>
+        </div>
+        <div>
+          <div class="tags fade" data-fade>
+            <span class="tag">Claude API</span>
+            <span class="tag">Gemini API</span>
+            <span class="tag">Dify</span>
+            <span class="tag">Python</span>
+            <span class="tag">GAS</span>
+            <span class="tag">RAG</span>
+            <span class="tag">Cursor</span>
+            <span class="tag">LINE API</span>
+            <span class="tag">Stripe</span>
+            <span class="tag">Vercel</span>
+          </div>
+          <!-- スキルバー（視覚的アクセント） -->
+          <div class="skill-bars fade" data-fade>
+            <div class="skill-row">
+              <label>AI 実装 / エージェント</label>
+              <div class="bar"><span style="width: 92%"></span></div>
+            </div>
+            <div class="skill-row">
+              <label>医療現場理解・ヒアリング</label>
+              <div class="bar"><span style="width: 95%"></span></div>
+            </div>
+            <div class="skill-row">
+              <label>業務自動化 (GAS / API)</label>
+              <div class="bar"><span style="width: 88%"></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. Works -->
+  <section class="works" id="works" aria-labelledby="works-h">
+    <div class="wrap">
+      <h2 id="works-h">Works <span class="sub">制作実績</span></h2>
+      <div class="card-grid">
+        <article class="card fade" data-fade>
+          <h3>退院サマリー生成AI</h3>
+          <p class="tool">Dify × Claude API</p>
+          <p>平均130分かかっていた退院サマリー作成を数分に自動化。RAG により医療文書に沿った要約を生成。</p>
+          <div class="tags">
+            <span class="tag">RAG</span>
+            <span class="tag">Dify</span>
+            <span class="tag">Claude API</span>
+            <span class="tag">医療DX</span>
+          </div>
+        </article>
+        <article class="card fade" data-fade>
+          <h3>スライド自動生成パイプライン</h3>
+          <p class="tool">Gemini API × Python × Cursor</p>
+          <p>テーマを入力するだけで背景生成＋テキストオーバーレイのスライドを自動生成。</p>
+          <div class="tags">
+            <span class="tag">Python</span>
+            <span class="tag">Gemini API</span>
+            <span class="tag">Cursor</span>
+            <span class="tag">自動化</span>
+          </div>
+        </article>
+        <article class="card fade" data-fade>
+          <h3>業務フォーム自動集計システム</h3>
+          <p class="tool">Google Apps Script</p>
+          <p>患者データの自動振り分け・集計・通知送信を完全自動化。</p>
+          <div class="tags">
+            <span class="tag">GAS</span>
+            <span class="tag">Google Workspace</span>
+            <span class="tag">業務効率化</span>
+          </div>
+        </article>
+        <article class="card fade" data-fade>
+          <h3>AI活用研修の企画・実施</h3>
+          <p class="tool">Claude / ChatGPT / Dify</p>
+          <p>非エンジニア医療職種30名以上を対象にAI活用研修を企画・実施。</p>
+          <div class="tags">
+            <span class="tag">AI教育</span>
+            <span class="tag">研修設計</span>
+            <span class="tag">非エンジニア向け</span>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. Service -->
+  <section class="service" id="service" aria-labelledby="service-h">
+    <div class="wrap">
+      <h2 id="service-h">Service <span class="sub">提供内容</span></h2>
+      <div class="service-list">
+        <div class="service-item fade" data-fade>
+          <h3>AIエージェント・チャットボット開発</h3>
+          <p>自社・医療・業務特化の対話体験を、API連携とプロンプト設計で実装。</p>
+        </div>
+        <div class="service-item fade" data-fade>
+          <h3>業務自動化システム構築</h3>
+          <p>GAS / 各種 API 連携で、フォーム・表計算・通知まで一気通貫。</p>
+        </div>
+        <div class="service-item fade" data-fade>
+          <h3>AI活用研修・導入コンサルティング</h3>
+          <p>非エンジニア向けに、ツール選定からワークフロー改善まで伴走。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. Contact -->
+  <section class="contact-wrap" id="contact" aria-labelledby="contact-h">
+    <div class="wrap">
+      <div class="contact fade" data-fade>
+        <h2 id="contact-h">Contact</h2>
+        <p>まずはお気軽にご相談ください</p>
+        <a class="btn btn-primary" href="#" target="_blank" rel="noopener noreferrer">クラウドワークスで相談する</a>
+        <p class="hours">
+          <strong>稼働時間目安</strong><br />
+          月・火・木・金：20:00以降<br />
+          水・土・日：18:00以降
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="wrap">© <span id="y"></span> ONO.AI / Kosei Ono</div>
+  </footer>
+
+  <script>
+    (function () {
+      "use strict";
+
+      // ----- タイピングエフェクト（キャッチコピー） -----
+      var full = "現場の課題を、AIで解く。";
+      var el = document.getElementById("typing");
+      var i = 0;
+      function tick() {
+        if (i <= full.length) {
+          el.textContent = full.slice(0, i);
+          i++;
+          setTimeout(tick, 55 + Math.random() * 30);
+        } else {
+          el.classList.add("done");
+        }
+      }
+      tick();
+
+      // ----- スクロールフェードイン -----
+      var nodes = document.querySelectorAll(".fade[data-fade]");
+      if ("IntersectionObserver" in window) {
+        var obs = new IntersectionObserver(
+          function (entries) {
+            entries.forEach(function (e) {
+              if (e.isIntersecting) {
+                e.target.classList.add("visible");
+                obs.unobserve(e.target);
+              }
+            });
+          },
+          { root: null, rootMargin: "0px 0px -8% 0px", threshold: 0.1 }
+        );
+        nodes.forEach(function (n) {
+          obs.observe(n);
+        });
+        // ファーストビュー分は即表示
+        setTimeout(function () {
+          document.querySelectorAll(".hero .fade").forEach(function (n) {
+            n.classList.add("visible");
+          });
+        }, 200);
+      } else {
+        nodes.forEach(function (n) {
+          n.classList.add("visible");
+        });
+      }
+
+      // ----- 年号（フッター） -----
+      var y = document.getElementById("y");
+      if (y) y.textContent = new Date().getFullYear();
+    })();
+  </script>
+</body>
+</html>

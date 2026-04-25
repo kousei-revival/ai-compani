@@ -1,0 +1,7 @@
+# FastAPI 本体と ASGI サーバ
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+# GAS へ非同期で POST する（302 対応で手動リダイレクトしやすい）
+httpx>=0.27.0
+# 環境変数の読み込み（.env ファイル用）
+python-dotenv>=1.0.0

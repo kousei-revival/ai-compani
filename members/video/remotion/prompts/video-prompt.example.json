@@ -1,0 +1,36 @@
+{
+  "description": "コピーして video-prompt.json に反映するテンプレ。メディアは remotion/public/ 以下に置き、src はそこからの相対パス。",
+  "fps": 30,
+  "width": 1920,
+  "height": 1080,
+  "bgm": {
+    "src": "audio/bgm.mp3",
+    "volume": 0.22,
+    "loop": true
+  },
+  "scenes": [
+    {
+      "durationSeconds": 3,
+      "backgroundColor": "#111827",
+      "backgroundImage": "images/sample-bg.png",
+      "backgroundImageFit": "cover",
+      "backgroundDim": 0.35,
+      "elements": [
+        {"text": "画像の上にテロップ", "color": "#F9FAFB", "fontSize": 80}
+      ]
+    },
+    {
+      "durationSeconds": 4,
+      "backgroundColor": "#F3F4F6",
+      "sceneAudio": {
+        "src": "audio/sfx.mp3",
+        "volume": 0.5,
+        "loop": false
+      },
+      "elements": [
+        {"type": "image", "src": "images/logo.png", "maxHeight": 200},
+        {"text": "ロゴの下にテキスト", "color": "#111827", "fontSize": 56, "marginTop": 32}
+      ]
+    }
+  ]
+}

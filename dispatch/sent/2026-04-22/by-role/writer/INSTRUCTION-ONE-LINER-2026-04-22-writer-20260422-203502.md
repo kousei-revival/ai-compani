@@ -1,0 +1,1 @@
+/Users/kousei/ai-company/members/writer/inbox/INSTRUCTION-ONE-LINER-2026-04-22-writer-20260422-203502.md

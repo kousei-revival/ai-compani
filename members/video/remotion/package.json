@@ -1,0 +1,21 @@
+{
+  "name": "members-video-remotion",
+  "version": "1.0.0",
+  "description": "members/video 用 — iCloud Video_auto と同じ Remotion ベースの自動編集（レンダリング）",
+  "main": "index.js",
+  "scripts": {
+    "start": "remotion studio remotion/index.jsx",
+    "render": "remotion render remotion/index.jsx VideoFromPrompt out/video.mp4",
+    "build-assets": "python3 scripts/build-demo-assets.py"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@remotion/cli": "^4.0.446",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "remotion": "^4.0.446"
+  }
+}

@@ -1,0 +1,30 @@
+slack-bot / Slack 管理画面の手動チェック（1行ずつ確認）
+
+□ 1. api.slack.com → 対象アプリ（Cursor）を開く
+
+□ 2. Socket Mode → On
+
+□ 3. Event Subscriptions
+    □ Enable Events → On（Off だとイベントは一切来ない）
+    □ Subscribe to bot events に app_mention がある
+    □ 緑の Save Changes を押した
+    □ 再インストールを求められたら Install to Workspace を実行
+
+□ 4. OAuth & Permissions
+    □ app_mentions:read / chat:write がある
+    □ Bot User OAuth Token（xoxb-）が .env の SLACK_BOT_TOKEN と同じアプリのもの
+
+□ 5. Basic Information の Signing Secret が .env の SLACK_SIGNING_SECRET と同じアプリ
+
+□ 6. App-Level Token（connections:write）が .env の SLACK_APP_TOKEN と一致
+
+□ 7. PC で ./verify.sh が全部 OK のあと ./start-bot.sh
+    → ターミナルに「Socket Mode 起動」「Now connected to Slack」
+
+□ 8. 試すチャンネルで /invite @Cursor（@から選ぶ）
+
+□ 9. 新規メッセージで「@Cursor テスト」とメンション付き投稿
+
+□ 10. ターミナルに「[slack-bot] Slack イベント: app_mention」が増えるか
+    - 増えない → 3〜8 をやり直し（特に Enable Events と Save）
+    - 増える → chat.postMessage のエラー行を確認（not_in_channel 等）

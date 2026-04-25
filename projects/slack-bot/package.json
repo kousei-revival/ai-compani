@@ -1,0 +1,26 @@
+{
+  "name": "ai-company-slack-bot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Slack @ボット返信（Bolt + app_mention + LLM）",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/app.js",
+    "dev": "tsx watch src/app.ts"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.0",
+    "@slack/bolt": "^3.22.0",
+    "dotenv": "^16.4.5",
+    "openai": "^4.73.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}
