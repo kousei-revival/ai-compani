@@ -1,0 +1,12 @@
+# FastAPI 本体と ASGI サーバ
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+
+# LINE Messaging API SDK
+line-bot-sdk>=3.14.0
+
+# Claude API SDK
+anthropic>=0.60.0
+
+# ローカル開発で .env を読むため
+python-dotenv>=1.0.0

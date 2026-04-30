@@ -1,0 +1,23 @@
+# Fly.io 用。アプリ名は fly launch 時に一意な名前へ変更してください。
+# デプロイ: cd members/customer_success/line-echo-bot-server && fly deploy
+#
+# シークレット設定例:
+#   fly secrets set LINE_CHANNEL_SECRET=xxx LINE_CHANNEL_ACCESS_TOKEN=yyy ANTHROPIC_API_KEY=zzz
+
+app = "line-secretary-bot"
+primary_region = "nrt"
+
+[build]
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # Webhook は常時応答できるように停止しない（プラン次第で調整）
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[vm]]
+  memory = "256mb"
+  cpu_kind = "shared"
+  cpus = 1

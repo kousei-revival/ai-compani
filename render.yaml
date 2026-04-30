@@ -1,0 +1,22 @@
+# LINE 秘書Bot（FastAPI）— Render Blueprint
+# GitHub と連携後、ダッシュボードで Blueprint を適用するか、このファイルで作成。
+# https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: line-secretary-bot
+    runtime: docker
+    region: singapore
+    plan: free
+    rootDir: members/customer_success/line-echo-bot-server
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /
+    envVars:
+      - key: LINE_CHANNEL_SECRET
+        sync: false
+      - key: LINE_CHANNEL_ACCESS_TOKEN
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: CLAUDE_MODEL
+        sync: false
