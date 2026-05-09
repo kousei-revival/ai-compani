@@ -2,7 +2,7 @@
 # デプロイ: cd members/customer_success/line-echo-bot-server && fly deploy
 #
 # シークレット設定例:
-#   fly secrets set LINE_CHANNEL_SECRET=xxx LINE_CHANNEL_ACCESS_TOKEN=yyy ANTHROPIC_API_KEY=zzz
+#   fly secrets set LINE_CHANNEL_SECRET=xxx LINE_CHANNEL_ACCESS_TOKEN=yyy ANTHROPIC_API_KEY=zzz GAS_LINE_LOG_WEBAPP_URL=https://... GAS_GMAIL_WEBAPP_URL=https://...
 
 app = "line-secretary-bot"
 primary_region = "nrt"

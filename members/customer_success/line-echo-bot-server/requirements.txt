@@ -8,5 +8,8 @@ line-bot-sdk>=3.14.0
 # Claude API SDK
 anthropic>=0.60.0
 
+# GAS WebApp からLINEログを取得するため
+httpx>=0.27.0
+
 # ローカル開発で .env を読むため
 python-dotenv>=1.0.0

@@ -18,5 +18,9 @@ services:
         sync: false
       - key: ANTHROPIC_API_KEY
         sync: false
+      - key: GAS_LINE_LOG_WEBAPP_URL
+        sync: false
+      - key: GAS_GMAIL_WEBAPP_URL
+        sync: false
       - key: CLAUDE_MODEL
         sync: false
