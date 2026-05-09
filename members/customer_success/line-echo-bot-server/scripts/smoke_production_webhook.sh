@@ -5,6 +5,7 @@
 #
 # 無料プランはスリープからの初回が数十秒〜90秒超かかることがあります。
 # タイムアウトしたら Render ダッシュボードで Manual Deploy またはブラウザで URL を開いて起こしてから再実行してください。
+# LINE Developers の「検証」がタイムアウトするときも同様（先にブラウザで GET / が JSON になるまでウェイクする）。詳細は DEPLOY.md の STEP4。
 set -euo pipefail
 
 BASE_URL="${BASE_URL:-}"
