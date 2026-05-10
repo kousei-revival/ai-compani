@@ -54,6 +54,21 @@ uvicorn main:app --host 0.0.0.0 --port $PORT
 
 ※ `"$PORT"` のようにダブルクォートで囲むと、**シェルによっては空扱いになり 8000 固定になる**ことがあります。**`$PORT` だけ**を推奨します。
 
+**Native Python で `uvicorn … 3000` なのに `No open ports detected` → すぐ Shutting down になるとき**
+
+ビルドログに **`Installing Python version`** や **Poetry** が出て、Docker の **`FROM python`** ステップが無い場合は **Native Python サービス**です（このフォルダの **`Dockerfile` は使われていません**）。
+
+| 対処（優先） | 内容 |
+|--------------|------|
+| **A. ランタイムを Docker に変える** | Render → 対象 Web Service → **Settings** → **Build & Deploy** で **Docker** を選び、**Root Directory** を `members/customer_success/line-echo-bot-server` のまま **Save** → 再デプロイ。リポジトリの [`render.yaml`](../../../render.yaml) の意図とも一致します。 |
+| **B. Native のまま試す** | Start Command を **`sh` 経由で 1 行**にする（`$PORT` の展開と `exec` を確実にする）。下の「コピペ用」を使う。同フォルダの **`runtime.txt`** で Python を 3.12 系に寄せてあります（再デプロイ後、ログの Python バージョンが変わるか確認）。 |
+
+**コピペ用（Native Python 向け・Start Command 1 行）:**
+
+```text
+sh -c 'exec uvicorn main:app --host 0.0.0.0 --port ${PORT}'
+```
+
 ### Blueprint と Root Directory（404 対策）
 
 リポジトリ直下の [`render.yaml`](../../../render.yaml) では `rootDir: members/customer_success/line-echo-bot-server` が指定されています。手動で Web Service を作った場合も、この値と一致させないと **`POST /callback` が 404** になります。
