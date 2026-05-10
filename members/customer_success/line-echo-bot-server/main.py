@@ -144,6 +144,12 @@ async def root_health():
     return {"ok": True, "service": "line-secretary-bot"}
 
 
+@app.head("/")
+async def root_health_head():
+    """Render 等が HEAD / でプローブするとき 405 にならないようにする（ボディなし 200）。"""
+    return Response(status_code=200)
+
+
 # WebhookParser は X-Line-Signature を検証しながらイベントをパースする。
 parser = WebhookParser(LINE_CHANNEL_SECRET)
 configuration = Configuration(access_token=LINE_CHANNEL_ACCESS_TOKEN)
