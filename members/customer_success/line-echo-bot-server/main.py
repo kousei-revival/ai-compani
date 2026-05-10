@@ -586,12 +586,20 @@ def process_secretary_webhook_background(body_bytes: bytes, signature: str) -> N
 async def callback(request: Request, background_tasks: BackgroundTasks) -> Response:
     """本文を読み取ったらすぐ 200。検証・返信・Claude はバックグラウンド。"""
     # 一時デバッグ: Render Logs で到達確認用（不要になったら削除）
-    print("=== /callback にリクエストが来たよ ===")
+    # flush=True でクラウドログにすぐ出やすくする。秒読みで「本文読むのに時間がかかっていないか」も見る。
+    t0 = time.monotonic()
+    print("=== /callback にリクエストが来たよ ===", flush=True)
     body_bytes = await request.body()
-    print(f"body length: {len(body_bytes)}")
+    t1 = time.monotonic()
+    print(f"body length: {len(body_bytes)}", flush=True)
     signature = request.headers.get("X-Line-Signature", "")
-    print(f"signature: {signature}")
+    print(f"signature: {signature[:20]}..." if len(signature) > 20 else f"signature: {signature}", flush=True)
     background_tasks.add_task(process_secretary_webhook_background, body_bytes, signature)
+    t2 = time.monotonic()
+    print(
+        f"=== /callback 200 直前: read_body_ms={(t1 - t0) * 1000:.1f} total_ms={(t2 - t0) * 1000:.1f} ===",
+        flush=True,
+    )
     return Response(status_code=200)
 
 
