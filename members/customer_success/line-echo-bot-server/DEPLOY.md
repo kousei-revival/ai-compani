@@ -27,6 +27,18 @@
 
 **注意:** 無料プランはアイドルでスリープすることがあり、初回メッセージが数十秒遅れることがあります。常時すぐ応答したい場合は有料プランの検討が必要です。
 
+### PORT と Start Command（`Port scan timeout … port 3000` 対策）
+
+Render はコンテナに **`PORT` 環境変数**（例: `3000`）を注入し、そのポートで待ち受けているか確認します。
+
+| やること | 理由 |
+|----------|------|
+| **Environment に `PORT` を自分で追加しない** | プラットフォーム注入値と食い違うと、スキャンが失敗する。 |
+| **Start Command を空にする**（推奨） | `Dockerfile` の `ENTRYPOINT`（`docker-entrypoint.sh`）が **`$PORT`** で uvicorn を起動する。 |
+| Start Command を自前にするとき | 必ず **`--port $PORT`** を使う。**`--port 10000` など固定は NG**（ログでは起動できても Render の検出だけ失敗する）。 |
+
+デプロイログに `docker-entrypoint: binding uvicorn to PORT=…` と出るので、**その数字が Render の期待と一致しているか**を確認してください。
+
 ### Blueprint と Root Directory（404 対策）
 
 リポジトリ直下の [`render.yaml`](../../../render.yaml) では `rootDir: members/customer_success/line-echo-bot-server` が指定されています。手動で Web Service を作った場合も、この値と一致させないと **`POST /callback` が 404** になります。

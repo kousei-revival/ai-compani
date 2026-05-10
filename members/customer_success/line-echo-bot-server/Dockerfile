@@ -10,7 +10,9 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY main.py .
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh
 
-# Render / Fly などは $PORT を注入する（Fly は通常 8080）。ローカル Docker では 8000。
+# Render / Fly などは $PORT を注入する。ENTRYPOINT が必ずそれを使う（ローカルは 8000 既定）。
 EXPOSE 8000
-CMD ["sh", "-c", "exec uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
