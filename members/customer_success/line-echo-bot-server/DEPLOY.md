@@ -61,7 +61,7 @@ uvicorn main:app --host 0.0.0.0 --port $PORT
 | 対処（優先） | 内容 |
 |--------------|------|
 | **A. ランタイムを Docker に変える** | Render → 対象 Web Service → **Settings** → **Build & Deploy** で **Docker** を選び、**Root Directory** を `members/customer_success/line-echo-bot-server` のまま **Save** → 再デプロイ。リポジトリの [`render.yaml`](../../../render.yaml) の意図とも一致します。 |
-| **B. Native のまま試す** | Start Command を **`sh` 経由で 1 行**にする（`$PORT` の展開と `exec` を確実にする）。下の「コピペ用」を使う。同フォルダの **`runtime.txt`** で Python を 3.12 系に寄せてあります（再デプロイ後、ログの Python バージョンが変わるか確認）。 |
+| **B. Native のまま試す** | Start Command を **`sh` 経由で 1 行**にする（`$PORT` の展開と `exec` を確実にする）。下の「コピペ用」を使う。同フォルダの **`runtime.txt`** は **先頭行だけ** `python-3.12.8` のように書く（**# コメントを先頭に置くと Render がバージョンを読めず 3.14 のままになる**）。再デプロイ後、ログの Python バージョンが変わるか確認。 |
 
 **コピペ用（Native Python 向け・Start Command 1 行）:**
 

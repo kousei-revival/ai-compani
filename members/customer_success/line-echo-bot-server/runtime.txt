@@ -1,3 +1,1 @@
-# Render「Native Python」ビルドで 3.14 系が選ばれるのを避け、Dockerfile（3.12）に近い安定版に寄せる。
-# Docker ランタイムでデプロイしている場合はこのファイルは無視される。
 python-3.12.8
