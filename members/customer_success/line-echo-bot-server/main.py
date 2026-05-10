@@ -137,17 +137,20 @@ if not LOG_COLLECTOR_LINE_CHANNEL_SECRET:
 
 app = FastAPI(title="LINE Secretary Bot", version="0.1.0")
 
+# Render が注入する PORT と uvicorn の --port がずれると「scan 3000 / listen 10000」になる。
+# Environment に PORT を手で足さないこと（二重定義で競合することがある）。
+logger.info(
+    "Startup diagnostic: PORT env=%r (listen port must match this on Render)",
+    os.environ.get("PORT", ""),
+)
 
-@app.get("/")
-async def root_health():
-    """クラウドのヘルスチェック用（既定で GET / を叩くサービス向け）。"""
+
+@app.api_route("/", methods=["GET", "HEAD"])
+async def root_health(request: Request):
+    """クラウドのヘルスチェック用。HEAD / だけだと 405 になり得るため GET/HEAD を同一ハンドラにまとめる。"""
+    if request.method == "HEAD":
+        return Response(status_code=200)
     return {"ok": True, "service": "line-secretary-bot"}
-
-
-@app.head("/")
-async def root_health_head():
-    """Render 等が HEAD / でプローブするとき 405 にならないようにする（ボディなし 200）。"""
-    return Response(status_code=200)
 
 
 # WebhookParser は X-Line-Signature を検証しながらイベントをパースする。

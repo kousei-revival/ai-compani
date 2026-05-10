@@ -65,9 +65,19 @@ uvicorn main:app --host 0.0.0.0 --port $PORT
 
 **コピペ用（Native Python 向け・Start Command 1 行）:**
 
+推奨（`PORT` を必ず使い、ログに出す）:
+
+```text
+./scripts/start_render_native.sh
+```
+
+または:
+
 ```text
 sh -c 'exec uvicorn main:app --host 0.0.0.0 --port ${PORT}'
 ```
+
+**「scan は 3000 なのに Uvicorn は 10000」とログに出るとき:** Render の **Environment** に **`PORT` を自分で書いている**可能性が高いです。**手動の `PORT` 行を削除**し、プラットフォームが付与する値だけにしてください。そのうえで **Clear build cache → Deploy**。
 
 ### Blueprint と Root Directory（404 対策）
 
