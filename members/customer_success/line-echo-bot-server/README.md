@@ -42,4 +42,4 @@ https://<公開URL>/callback
 
 常時起動したい場合は Docker でホスティングします。手順は **`DEPLOY.md`** を参照してください（**Render** はリポジトリ直下の **`render.yaml`**、**Railway** は **`railway.toml`** を利用）。
 
-本番に Webhook を切り替えたあとのチェックリスト・コマンド検証は **`DEPLOY.md` の「本番 Webhook 切り替えと検証」** と `./scripts/smoke_production_webhook.sh` を参照してください。
+本番に Webhook を切り替えたあとのチェックリスト・コマンド検証は **`DEPLOY.md` の「本番 Webhook 切り替えと検証」** と **`./scripts/wake_render_for_line_webhook.sh`**（スリープ対策でウェイク→自動で `./scripts/smoke_production_webhook.sh`）を参照してください。

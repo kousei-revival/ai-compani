@@ -576,8 +576,12 @@ def process_secretary_webhook_background(body_bytes: bytes, signature: str) -> N
 @app.post("/callback")
 async def callback(request: Request, background_tasks: BackgroundTasks) -> Response:
     """本文を読み取ったらすぐ 200。検証・返信・Claude はバックグラウンド。"""
+    # 一時デバッグ: Render Logs で到達確認用（不要になったら削除）
+    print("=== /callback にリクエストが来たよ ===")
     body_bytes = await request.body()
+    print(f"body length: {len(body_bytes)}")
     signature = request.headers.get("X-Line-Signature", "")
+    print(f"signature: {signature}")
     background_tasks.add_task(process_secretary_webhook_background, body_bytes, signature)
     return Response(status_code=200)
 

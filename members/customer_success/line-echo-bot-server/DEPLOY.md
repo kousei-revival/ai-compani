@@ -88,8 +88,18 @@ PC は不要です。**LINE アプリ**だけで次を確認します。
 
 1. ブラウザで `https://＜あなたの Render のホスト＞.onrender.com/` を開く。
 2. **APPLICATION LOADING** が終わり、`{"ok":true,...}` のような JSON が **すぐ**表示されるまで待つ（必要なら再読み込み）。
+   - Safari 等では **黒いターミナル風の「サービス起動ログ」画面**のまま **数十秒〜1分以上**かかることがあります。この間に LINE の「検証」を押すと、**アプリがまだ `GET /` にも答えられない**ため LINE 側が先にタイムアウトします。**JSON が画面に出たあと**に検証してください。
 3. **すぐあとに** LINE Developers → **Messaging API 設定** → **Webhook「検証」** を実行する。
 4. 失敗したら **1〜3 を繰り返す**（検証・テスト送信はウェイク直後が確実）。
+
+**コマンドでウェイク＋疎通までまとめて行う場合**（無料枠の初回が遅いとき、GET `/` を数分かけてリトライします）:
+
+```bash
+cd members/customer_success/line-echo-bot-server
+BASE_URL=https://＜あなたの Render のホスト＞.onrender.com ./scripts/wake_render_for_line_webhook.sh
+```
+
+成功したら **その直後**に LINE の「検証」を押してください。スクリプト末尾に Logs / 設定 / UptimeRobot の確認メモも出ます。
 
 実メッセージのテストも、できれば **ブラウザで `/` を開いた直後**に送ると安定しやすいです。
 
@@ -100,6 +110,24 @@ PC は不要です。**LINE アプリ**だけで次を確認します。
 3. その付近に **`POST /callback`**、`Received`、`INFO:` などアプリのログがあるか確認する。
    - **ログに POST が無い**: リクエストがアプリに届く前に諦められたパターン（スリープ・ロード中・URL 誤り）。手順 A と Root Directory／Webhook URL を再確認。
    - **ログに POST がある**: アプリは受け付けている。続きのログで署名エラーや例外が無いか見る。
+
+**チェックリスト（コピー用）**
+
+| 確認 | 内容 |
+|------|------|
+| 時刻 | LINE エラー表示時刻（JST）→ UTC に換算して Logs で同時間帯を開く |
+| POST の有無 | その窓で `POST`、`/callback`、`Received` が出るか |
+| 分岐 | POST 無し → ウェイク・URL・到達前タイムアウト。POST あり → 署名・例外ログを追う |
+
+#### 手順 B2: Render ダッシュボード設定の再確認
+
+| 項目 | 期待値 |
+|------|--------|
+| **Status** | Live（ビルド失敗・停止でない） |
+| **URL** | LINE に書いた `https://…onrender.com` と一致 |
+| **Root Directory** | `members/customer_success/line-echo-bot-server` |
+| **Environment** | **Docker**（このリポの `Dockerfile` を使う） |
+| **Env** | `LINE_CHANNEL_SECRET`, `LINE_CHANNEL_ACCESS_TOKEN`, `ANTHROPIC_API_KEY` など必要変数が設定済み |
 
 #### 手順 C: 頻発するときの恒久対策
 
