@@ -16,6 +16,8 @@
 | `GAS_LINE_LOG_WEBAPP_URL` | LINEログを返す GAS WebApp URL。Bot が `?days=3` を付けて取得 |
 | `GAS_GMAIL_WEBAPP_URL` | Gmail一覧を返す GAS WebApp URL。Bot が `?days=3&max=50` を付けて取得 |
 | `CLAUDE_MODEL` | （任意）未設定時は Haiku 系の既定値 |
+| `CHAT_MEMORY_TTL_SECONDS` | （任意）会話メモリの失効秒数。既定 `3600`（1時間）。プロセス内のみ |
+| `CHAT_MEMORY_MAX_TURNS` | （任意）メモリに載せる最大往復数。既定 `5` |
 
 ## Render（無料枠あり）
 

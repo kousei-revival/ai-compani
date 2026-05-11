@@ -13,6 +13,9 @@ ANTHROPIC_API_KEY=your_anthropic_api_key_here
 GAS_LINE_LOG_WEBAPP_URL=https://script.google.com/macros/s/.../exec
 GAS_GMAIL_WEBAPP_URL=https://script.google.com/macros/s/.../exec
 CLAUDE_MODEL=claude-haiku-4-5-20251001
+# 会話メモリ（任意）— プロセス内のみ、再起動で消える
+# CHAT_MEMORY_TTL_SECONDS=3600
+# CHAT_MEMORY_MAX_TURNS=5
 ```
 
 - `LINE_CHANNEL_SECRET`: LINE Developers の Channel secret
@@ -21,6 +24,8 @@ CLAUDE_MODEL=claude-haiku-4-5-20251001
 - `GAS_LINE_LOG_WEBAPP_URL`: LINEログを返す GAS WebApp のURL（Bot は `?days=3` を付けて取得）
 - `GAS_GMAIL_WEBAPP_URL`: Gmail一覧を返す GAS WebApp のURL（Bot は `?days=3&max=50` を付けて取得）
 - `CLAUDE_MODEL`: 使用するClaudeモデル（未設定なら `claude-haiku-4-5-20251001`）
+- `CHAT_MEMORY_TTL_SECONDS`: 同一相手との会話メモリの保持時間（秒）。既定 `3600`
+- `CHAT_MEMORY_MAX_TURNS`: Claude に渡すメモリの最大往復数。既定 `5`
 
 ## 起動
 

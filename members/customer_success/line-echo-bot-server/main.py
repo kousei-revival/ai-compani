@@ -19,8 +19,10 @@ import logging
 import os
 import threading
 import time
+from collections import deque
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, Tuple
 
 import httpx
 from anthropic import Anthropic
@@ -96,9 +98,67 @@ CLAUDE_MODEL = MODEL_ALIASES.get(
     (os.environ.get("CLAUDE_MODEL") or DEFAULT_CLAUDE_MODEL).strip(),
 )
 
+# 会話メモリ（プロセス内のみ。再起動で消える）: 1チャット先 ID あたり直近 N 往復、TTL 秒で失効
+CHAT_MEMORY_TTL_SECONDS = float(os.environ.get("CHAT_MEMORY_TTL_SECONDS") or "3600")
+CHAT_MEMORY_MAX_TURNS = max(1, int(os.environ.get("CHAT_MEMORY_MAX_TURNS") or "5"))
+
+
+def _new_turns_deque() -> deque:
+    """環境変数で maxlen が決まるため、セッション作成時に都度生成する。"""
+    return deque(maxlen=CHAT_MEMORY_MAX_TURNS)
+
+
+@dataclass
+class ChatSession:
+    """1プッシュ先（user / group / room）ごとの会話履歴。"""
+
+    last_mono: float = 0.0
+    turns: deque = field(default_factory=_new_turns_deque)
+
+
+# key: get_push_target_id と同じ ID（スレッドからも触るのでロック必須）
+_chat_sessions: dict[str, ChatSession] = {}
+_chat_sessions_lock = threading.Lock()
+
+
+def _snapshot_prior_turns(memory_key: str) -> list[Tuple[str, str]]:
+    """
+    今回の発話より前の、完了済みターン列を返す（TTL 超過なら空にリセット）。
+    API 呼び出しの前に読む。長い Claude 待ちの間はロックを取らない。
+    """
+    now = time.monotonic()
+    with _chat_sessions_lock:
+        s = _chat_sessions.get(memory_key)
+        if s is None:
+            return []
+        if now - s.last_mono > CHAT_MEMORY_TTL_SECONDS:
+            s.turns.clear()
+        s.last_mono = now
+        return list(s.turns)
+
+
+def _append_completed_turn(memory_key: str, user_text: str, assistant_text: str) -> None:
+    """Claude が返したあと、1往復をストアに追加する。"""
+    now = time.monotonic()
+    with _chat_sessions_lock:
+        s = _chat_sessions.get(memory_key)
+        if s is None:
+            s = ChatSession(last_mono=now)
+            _chat_sessions[memory_key] = s
+        # 前回アクセスから TTL 超えなら履歴捨て（初回は last_mono で同時刻なのでスキップ）
+        elif now - s.last_mono > CHAT_MEMORY_TTL_SECONDS:
+            s.turns.clear()
+        s.turns.append((user_text, assistant_text))
+        s.last_mono = now
+
+
 SECRETARY_SYSTEM_PROMPT = """
 あなたはクライアント対応の秘書です。
 相手の不安を増やさず、丁寧で短く、次に取る行動が分かる返信を作ってください。
+
+この直前までの messages に、同じ相手との短いやり取り履歴が含まれることがあります。
+ユーザーが「もう少しカジュアルにして」「もっと短く」「改めて丁寧に」などと言ったときは、
+直前にあなたが出力した返信の趣旨は保ちつつ、指示どおりトーンや長さを調整してください。
 
 守ること:
 - 日本語で返す
@@ -460,27 +520,30 @@ def build_claude_user_prompt(user_text: str, line_logs: str, email_logs: str) ->
     return "\n\n".join(context_blocks)
 
 
-def generate_secretary_reply(user_text: str) -> str:
-    """Claude API で、クライアント対応の秘書として返信文を作る。"""
+def generate_secretary_reply(memory_key: str, user_text: str) -> str:
+    """Claude API で、クライアント対応の秘書として返信文を作る（直近の会話メモリ付き）。"""
     if not ANTHROPIC_API_KEY:
         return "ただいま秘書Botの設定を確認しています。少し時間をおいてから、もう一度送ってください。"
 
+    prior_turns = _snapshot_prior_turns(memory_key)
     line_logs = fetch_line_logs_from_gas(days=3)
     logger.info("Claudeへ渡すLINE履歴: lines=%d, chars=%d", count_formatted_log_lines(line_logs), len(line_logs))
     email_logs = fetch_gmail_logs_from_gas(days=3, max_results=50)
     logger.info("Claudeへ渡すメール一覧: lines=%d, chars=%d", count_formatted_log_lines(email_logs), len(email_logs))
-    prompt = build_claude_user_prompt(user_text, line_logs, email_logs)
+    # GAS 由来の長い文脈は「今回の user メッセージ」1件にだけ載せる（メモリの過去ターンは LINE 生テキストのみ）
+    current_prompt = build_claude_user_prompt(user_text, line_logs, email_logs)
+
+    claude_messages: list[dict[str, str]] = []
+    for u_prev, a_prev in prior_turns:
+        claude_messages.append({"role": "user", "content": u_prev})
+        claude_messages.append({"role": "assistant", "content": a_prev})
+    claude_messages.append({"role": "user", "content": current_prompt})
 
     message = anthropic_client.messages.create(
         model=CLAUDE_MODEL,
         max_tokens=500,
         system=SECRETARY_SYSTEM_PROMPT,
-        messages=[
-            {
-                "role": "user",
-                "content": prompt,
-            }
-        ],
+        messages=claude_messages,
     )
 
     text_parts = []
@@ -490,8 +553,11 @@ def generate_secretary_reply(user_text: str) -> str:
 
     reply = "\n".join(text_parts).strip()
     if not reply:
-        return "内容を確認しました。担当者に確認して、必要な次の対応をご案内します。"
-    return reply[:4900]
+        reply = "内容を確認しました。担当者に確認して、必要な次の対応をご案内します。"
+    reply = reply[:4900]
+
+    _append_completed_turn(memory_key, user_text, reply)
+    return reply
 
 
 def generate_and_push_secretary_reply(to: str, user_text: str) -> None:
@@ -502,7 +568,7 @@ def generate_and_push_secretary_reply(to: str, user_text: str) -> None:
     """
     try:
         t0 = time.monotonic()
-        claude_reply = generate_secretary_reply(user_text)
+        claude_reply = generate_secretary_reply(to, user_text)
         elapsed = time.monotonic() - t0
         logger.info("Claude 応答生成まで %.2f 秒", elapsed)
     except Exception:
