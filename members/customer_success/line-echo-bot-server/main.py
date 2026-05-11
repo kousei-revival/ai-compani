@@ -526,6 +526,7 @@ def generate_secretary_reply(memory_key: str, user_text: str) -> str:
         return "ただいま秘書Botの設定を確認しています。少し時間をおいてから、もう一度送ってください。"
 
     prior_turns = _snapshot_prior_turns(memory_key)
+    logger.info("会話メモリ: key 先頭6文字=%s..., 直前の完了往復数=%d", memory_key[:6], len(prior_turns))
     line_logs = fetch_line_logs_from_gas(days=3)
     logger.info("Claudeへ渡すLINE履歴: lines=%d, chars=%d", count_formatted_log_lines(line_logs), len(line_logs))
     email_logs = fetch_gmail_logs_from_gas(days=3, max_results=50)
