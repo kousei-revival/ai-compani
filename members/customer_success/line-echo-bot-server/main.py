@@ -17,6 +17,7 @@ import hmac
 import json
 import logging
 import os
+import re
 import threading
 import time
 from collections import deque
@@ -281,56 +282,10 @@ def verify_line_signature_with_secret(body: bytes, signature: str, secret: str) 
     return hmac.compare_digest(expected, signature)
 
 
-def fetch_line_logs_from_gas(days: int = 3) -> str:
+def _unwrap_line_log_records(data: Any) -> list[dict[str, Any]]:
     """
-    GAS WebApp から LINE 会話ログを取得する。
-
-    ログ取得に失敗しても Bot 返信は止めないため、呼び出し側で空文字を扱う。
+    GASレスポンスの揺れ（list/dict, logs/messages/events/data/rows）を平坦化する。
     """
-    if not GAS_LINE_LOG_WEBAPP_URL:
-        logger.warning("GAS_LINE_LOG_WEBAPP_URL 未設定: LINE会話履歴を取得できません")
-        return ""
-
-    try:
-        with httpx.Client(timeout=10.0, follow_redirects=True) as client:
-            response = client.get(GAS_LINE_LOG_WEBAPP_URL, params={"days": days})
-            response.raise_for_status()
-    except httpx.HTTPError as exc:
-        logger.exception("GAS LINEログ取得に失敗: %s", exc)
-        return ""
-
-    raw_line_logs = response.text.strip()
-    line_logs = format_line_logs_for_prompt(raw_line_logs)
-    logger.info(
-        "GAS LINEログ取得成功: days=%d, raw_chars=%d, formatted_chars=%d",
-        days,
-        len(raw_line_logs),
-        len(line_logs),
-    )
-    if len(line_logs) > LINE_LOG_MAX_CHARS:
-        logger.info("LINEログが長いため末尾 %d 文字に切り詰めます", LINE_LOG_MAX_CHARS)
-        line_logs = line_logs[-LINE_LOG_MAX_CHARS:]
-    return line_logs
-
-
-def format_line_logs_for_prompt(raw_line_logs: str) -> str:
-    """
-    GASのJSONログをClaudeが読みやすい会話履歴へ整形する。
-
-    期待形:
-    [
-      {"timestamp": "...", "sender": "...", "message": "...", ...}
-    ]
-    """
-    if not raw_line_logs:
-        return ""
-
-    try:
-        data = json.loads(raw_line_logs)
-    except json.JSONDecodeError:
-        # GAS側がプレーンテキストを返す構成にも対応する。
-        return raw_line_logs
-
     records: list[Any]
     if isinstance(data, list):
         records = data
@@ -343,23 +298,234 @@ def format_line_logs_for_prompt(raw_line_logs: str) -> str:
         else:
             records = [data]
     else:
-        return raw_line_logs
+        return []
 
-    lines = []
+    normalized: list[dict[str, Any]] = []
+    for item in records:
+        if isinstance(item, dict):
+            normalized.append(item)
+    return normalized
+
+
+def _normalize_line_log_record(record: dict[str, Any]) -> Optional[dict[str, str]]:
+    """
+    レコードごとのキー揺れ（groupName/groupId/source.groupId/message.text など）を吸収する。
+    """
+    source = record.get("source")
+    if not isinstance(source, dict):
+        source = {}
+    message_obj = record.get("message")
+    if not isinstance(message_obj, dict):
+        message_obj = {}
+    group_obj = record.get("group")
+    if not isinstance(group_obj, dict):
+        group_obj = {}
+
+    message_value = record.get("message")
+    if isinstance(message_value, str):
+        message = message_value.strip()
+    else:
+        message = str(
+            record.get("text")
+            or record.get("content")
+            or record.get("body")
+            or message_obj.get("text")
+            or ""
+        ).strip()
+    if not message:
+        return None
+
+    timestamp = str(
+        record.get("timestamp")
+        or record.get("createdAt")
+        or record.get("datetime")
+        or record.get("time")
+        or ""
+    ).strip()
+    sender = str(
+        record.get("sender")
+        or record.get("displayName")
+        or record.get("userName")
+        or record.get("userId")
+        or source.get("userId")
+        or "不明"
+    ).strip()
+
+    group_id = str(
+        record.get("groupId")
+        or record.get("group_id")
+        or record.get("roomId")
+        or record.get("room_id")
+        or group_obj.get("id")
+        or source.get("groupId")
+        or source.get("roomId")
+        or ""
+    ).strip()
+    group_name = str(
+        record.get("groupName")
+        or record.get("group_name")
+        or record.get("group")
+        or group_obj.get("name")
+        or group_obj.get("groupName")
+        or source.get("groupName")
+        or ""
+    ).strip()
+    # group名が無いときでも room/group の判別に最低限使えるよう id を短縮表示する。
+    if not group_name and group_id:
+        group_name = f"id:{group_id[:8]}"
+
+    return {
+        "timestamp": timestamp,
+        "sender": sender,
+        "group": group_name,
+        "group_id": group_id,
+        "message": message,
+    }
+
+
+def fetch_line_log_records_from_gas(days: int = 3) -> list[dict[str, str]]:
+    """
+    GAS WebApp から LINE 会話ログを取得する。
+
+    ログ取得に失敗しても Bot 返信は止めないため、呼び出し側で空文字を扱う。
+    """
+    if not GAS_LINE_LOG_WEBAPP_URL:
+        logger.warning("GAS_LINE_LOG_WEBAPP_URL 未設定: LINE会話履歴を取得できません")
+        return []
+
+    try:
+        with httpx.Client(timeout=10.0, follow_redirects=True) as client:
+            response = client.get(GAS_LINE_LOG_WEBAPP_URL, params={"days": days})
+            response.raise_for_status()
+    except httpx.HTTPError as exc:
+        logger.exception("GAS LINEログ取得に失敗: %s", exc)
+        return []
+
+    raw_line_logs = response.text.strip()
+    try:
+        data = json.loads(raw_line_logs) if raw_line_logs else []
+    except json.JSONDecodeError:
+        # プレーンテキスト構成にも対応。group抽出はできないが、メッセージとしては使えるようにする。
+        return [
+            {
+                "timestamp": "",
+                "sender": "不明",
+                "group": "",
+                "group_id": "",
+                "message": raw_line_logs,
+            }
+        ] if raw_line_logs else []
+
+    raw_records = _unwrap_line_log_records(data)
+    normalized_records: list[dict[str, str]] = []
+    for record in raw_records:
+        n = _normalize_line_log_record(record)
+        if n:
+            normalized_records.append(n)
+
+    line_logs = format_line_log_records_for_prompt(normalized_records)
+    logger.info(
+        "GAS LINEログ取得成功: days=%d, raw_chars=%d, records=%d, formatted_chars=%d",
+        days,
+        len(raw_line_logs),
+        len(normalized_records),
+        len(line_logs),
+    )
+    return normalized_records
+
+
+def _match_group_keywords(record: dict[str, str], keywords: list[str]) -> bool:
+    group_name = (record.get("group") or "").lower()
+    group_id = (record.get("group_id") or "").lower()
+    for keyword in keywords:
+        if keyword in group_name or keyword in group_id:
+            return True
+    return False
+
+
+def extract_requested_group_keywords(user_text: str) -> list[str]:
+    """
+    「〇〇グループ」「グループ 〇〇」「グループ『〇〇』」のような指定語を抽出する。
+    """
+    if "グループ" not in user_text:
+        return []
+
+    patterns = [
+        r"グループ(?:名)?[：:\s]*[「『\"]?([^」』\"\n]{1,40})",
+        r"[「『\"]([^」』\"]{1,40})[」』\"]\s*グループ",
+    ]
+    found: list[str] = []
+    for pattern in patterns:
+        for m in re.findall(pattern, user_text):
+            token = m.strip().lower()
+            if token and token not in found:
+                found.append(token)
+    return found
+
+
+def format_line_log_records_for_prompt(records: list[dict[str, str]]) -> str:
+    """
+    正規化済みのLINEログをClaudeが読みやすい会話履歴へ整形する。
+    """
+    if not records:
+        return ""
+
+    lines: list[str] = []
     for record in records:
-        if not isinstance(record, dict):
-            continue
-        message = str(record.get("message") or record.get("text") or "").strip()
+        message = str(record.get("message") or "").strip()
         if not message:
             continue
-        timestamp = str(record.get("timestamp") or record.get("createdAt") or "").strip()
-        sender = str(record.get("sender") or record.get("displayName") or record.get("userId") or "不明").strip()
+        timestamp = str(record.get("timestamp") or "").strip()
+        sender = str(record.get("sender") or "不明").strip()
         group = str(record.get("group") or "").strip()
         prefix_parts = [part for part in (timestamp, group, sender) if part]
         prefix = " / ".join(prefix_parts)
         lines.append(f"{prefix}: {message}" if prefix else message)
 
     return "\n".join(lines)
+
+
+def build_line_log_status_message(
+    all_records: list[dict[str, str]],
+    prompt_records: list[dict[str, str]],
+    requested_keywords: list[str],
+) -> str:
+    """
+    ユーザー向け: どのグループログを取得できたかを可視化する。
+    """
+    if not all_records:
+        return "ログ取得状況: 直近LINEログを取得できませんでした（0件）。"
+
+    counts: dict[str, int] = {}
+    for record in all_records:
+        key = (record.get("group") or "(グループ情報なし)").strip() or "(グループ情報なし)"
+        counts[key] = counts.get(key, 0) + 1
+
+    top_groups = sorted(counts.items(), key=lambda x: x[1], reverse=True)[:5]
+    groups_preview = ", ".join([f"{name}:{count}" for name, count in top_groups])
+    latest_ts = ""
+    for record in reversed(all_records):
+        ts = (record.get("timestamp") or "").strip()
+        if ts:
+            latest_ts = ts
+            break
+
+    status = f"ログ取得状況: {len(all_records)}件 / グループ内訳(上位): {groups_preview}"
+    if latest_ts:
+        status += f" / 最新時刻: {latest_ts}"
+
+    if requested_keywords:
+        requested_text = ", ".join(requested_keywords)
+        status += (
+            f"\n指定グループ条件: {requested_text} "
+            f"(一致 {len(prompt_records)}件)"
+        )
+        if not prompt_records:
+            status += "\n※ 指定条件に一致するグループログは今回見つかりませんでした。"
+
+    if any((not (r.get("group") or "").strip()) for r in all_records):
+        status += "\n※ 一部ログは groupName/groupId が無く、(グループ情報なし) として扱っています。"
+    return status
 
 
 def count_formatted_log_lines(line_logs: str) -> int:
@@ -481,9 +647,16 @@ def forward_line_webhook_to_gas(body: bytes) -> None:
         logger.exception("GAS LINEログ保存に失敗: %s", exc)
 
 
-def build_claude_user_prompt(user_text: str, line_logs: str, email_logs: str) -> str:
+def build_claude_user_prompt(
+    user_text: str,
+    line_logs: str,
+    email_logs: str,
+    line_log_status_note: str = "",
+) -> str:
     """LINE履歴・メール一覧・最新メッセージをClaudeへ渡すプロンプトに整形する。"""
     context_blocks = []
+    if line_log_status_note:
+        context_blocks.append("以下は今回のログ取得状況です。\n" + line_log_status_note)
     if line_logs:
         context_blocks.append(
             "以下はクライアントとのLINEの会話履歴です。"
@@ -527,12 +700,32 @@ def generate_secretary_reply(memory_key: str, user_text: str) -> str:
 
     prior_turns = _snapshot_prior_turns(memory_key)
     logger.info("会話メモリ: key 先頭6文字=%s..., 直前の完了往復数=%d", memory_key[:6], len(prior_turns))
-    line_logs = fetch_line_logs_from_gas(days=3)
+    line_records = fetch_line_log_records_from_gas(days=3)
+    requested_group_keywords = extract_requested_group_keywords(user_text)
+    prompt_line_records = line_records
+    if requested_group_keywords:
+        prompt_line_records = [
+            r for r in line_records if _match_group_keywords(r, requested_group_keywords)
+        ]
+    line_logs = format_line_log_records_for_prompt(prompt_line_records)
+    if len(line_logs) > LINE_LOG_MAX_CHARS:
+        logger.info("LINEログが長いため末尾 %d 文字に切り詰めます", LINE_LOG_MAX_CHARS)
+        line_logs = line_logs[-LINE_LOG_MAX_CHARS:]
+    line_log_status_note = build_line_log_status_message(
+        all_records=line_records,
+        prompt_records=prompt_line_records,
+        requested_keywords=requested_group_keywords,
+    )
     logger.info("Claudeへ渡すLINE履歴: lines=%d, chars=%d", count_formatted_log_lines(line_logs), len(line_logs))
     email_logs = fetch_gmail_logs_from_gas(days=3, max_results=50)
     logger.info("Claudeへ渡すメール一覧: lines=%d, chars=%d", count_formatted_log_lines(email_logs), len(email_logs))
     # GAS 由来の長い文脈は「今回の user メッセージ」1件にだけ載せる（メモリの過去ターンは LINE 生テキストのみ）
-    current_prompt = build_claude_user_prompt(user_text, line_logs, email_logs)
+    current_prompt = build_claude_user_prompt(
+        user_text=user_text,
+        line_logs=line_logs,
+        email_logs=email_logs,
+        line_log_status_note=line_log_status_note,
+    )
 
     claude_messages: list[dict[str, str]] = []
     for u_prev, a_prev in prior_turns:
@@ -558,7 +751,11 @@ def generate_secretary_reply(memory_key: str, user_text: str) -> str:
     reply = reply[:4900]
 
     _append_completed_turn(memory_key, user_text, reply)
-    return reply
+
+    # 「まとめ」系の依頼時は、ユーザーがログ取得状況を自力で確認できるよう先頭に付ける。
+    if "まとめ" in user_text or "要約" in user_text:
+        reply = f"{line_log_status_note}\n\n{reply}"
+    return reply[:4900]
 
 
 def generate_and_push_secretary_reply(to: str, user_text: str) -> None:
